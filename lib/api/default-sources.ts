@@ -12,3 +12,6 @@ export const DEFAULT_SOURCES: VideoSource[] = [
     }
   }
 ];
+if (typeof window !== 'undefined') {
+  (window as any).DEFAULT_SOURCES = DEFAULT_SOURCES;
+}
