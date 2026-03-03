@@ -7,6 +7,7 @@ export const DEFAULT_SOURCES: VideoSource[] = [
     name: "公共解析源",
     baseUrl: "https://api.pianku.me",
     searchPath: "/api.php",
+    detailPath: "/api.php", // ✅ 补上类型要求的必填字段
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
