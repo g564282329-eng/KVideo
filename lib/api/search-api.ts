@@ -13,7 +13,7 @@ export async function searchVideos(
 
   const promises = validSources.map(async (source: any) => {
     try {
-      const url = new URL(`${source.baseUrl}${source.searchPath}`);
+      const url = new URL(source.searchPath, source.baseUrl);
       url.searchParams.set('wd', query.trim());
       url.searchParams.set('page', page.toString());
       if (source.headers) url.searchParams.set('ac', 'search');
