@@ -5,8 +5,6 @@ import type {
 } from '@/lib/types';
 import { fetchWithTimeout, withRetry } from './http-utils';
 import { parseEpisodes } from './parsers';
-// 👇 新增：直接导入 DEFAULT_SOURCES，不再用 window！
-import { DEFAULT_SOURCES } from './default-sources';
 
 /**
  * Get video detail from a single source
@@ -89,8 +87,4 @@ export async function getVideoDetail(
             retryable: false,
         };
     }
-}
-
-// 👇 修改：打印导入的 DEFAULT_SOURCES，而非 window 上的
-console.log("📥 已加载数据源：", DEFAULT_SOURCES);
 }
