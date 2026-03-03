@@ -1,35 +1,34 @@
 import type { VideoSource, SearchResult, ApiSearchResponse } from '@/lib/types';
 import { fetchWithTimeout, withRetry } from './http-utils';
-// 👇 新增：直接导入数据源，不再依赖 window
 import { DEFAULT_SOURCES } from './default-sources';
 
 /**
- * 并行搜索多个视频源
+ * 搜索视频（支持指定源列表+分页）
  * @param query 搜索关键词
- * @param type 视频类型（可选）
- * @returns 合并后的搜索结果
+ * @param sources 可选：指定搜索的源列表（默认用全局数据源）
+ * @param page 可选：页码（默认第1页）
+ * @returns 搜索结果数组
  */
 export async function searchVideos(
   query: string,
-  type?: string
+  sources?: VideoSource[], // 新增：支持指定源列表
+  page: number = 1 // 新增：分页参数（默认第1页）
 ): Promise<SearchResult[]> {
-  // 👇 核心修改：直接使用导入的数据源，移除 window 依赖
-  const sources = DEFAULT_SOURCES;
-  
-  // 可选调试日志（仅在浏览器端执行）
+  // 优先使用传入的源列表，否则用默认数据源
+  const activeSources = sources || DEFAULT_SOURCES;
+  // 过滤禁用的源
+  const validSources = activeSources.filter(source => source.enabled !== false);
+
   if (typeof window !== 'undefined') {
-    console.log("🔍 搜索已加载数据源:", sources);
+    console.log(`🔍 搜索关键词: ${query}, 源数量: ${validSources.length}, 页码: ${page}`);
   }
 
-  // 过滤掉禁用的源
-  const activeSources = sources.filter(source => source.enabled !== false);
-
-  // 并行请求所有活跃源
-  const promises = activeSources.map(async (source) => {
+  const promises = validSources.map(async (source) => {
     try {
       const url = new URL(`${source.baseUrl}${source.searchPath}`);
-      url.searchParams.set('wd', query);
-      if (type) url.searchParams.set('ac', type);
+      url.searchParams.set('wd', query.trim());
+      url.searchParams.set('page', page.toString()); // 传递分页参数
+      if (source.headers) url.searchParams.set('ac', 'search');
 
       const response = await withRetry(async () => {
         return fetchWithTimeout(url.toString(), {
@@ -41,13 +40,9 @@ export async function searchVideos(
         });
       });
 
-      if (!response.ok) {
-        throw new Error(`源 ${source.name} 请求失败: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data: ApiSearchResponse = await response.json();
-      
-      // 格式化结果
+
       return (data.list || []).map(item => ({
         vod_id: item.vod_id,
         vod_name: item.vod_name,
@@ -58,17 +53,16 @@ export async function searchVideos(
       })) as SearchResult[];
     } catch (error) {
       console.error(`源 ${source.name} 搜索失败:`, error);
-      return []; // 单个源失败不影响整体
+      return [];
     }
   });
 
-  // 等待所有请求完成，合并结果
   const results = await Promise.allSettled(promises);
   return results
-    .filter(result => result.status === 'fulfilled')
-    .flatMap(result => (result as PromiseFulfilledResult<SearchResult[]>).value)
+    .filter(res => res.status === 'fulfilled')
+    .flatMap(res => (res as PromiseFulfilledResult<SearchResult[]>).value)
     .filter(Boolean);
 }
 
-// 导出简化的搜索函数（兼容原有调用）
+// 兼容原有调用方式
 export const search = searchVideos;
