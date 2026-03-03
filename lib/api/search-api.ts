@@ -1,15 +1,8 @@
-// lib/api/search-api.ts - 纯英文语法，适配类型
+// Search API with source and pagination support
 import type { VideoSource, SearchResult, ApiSearchResponse } from '@/lib/types';
 import { fetchWithTimeout, withRetry } from './http-utils';
 import { DEFAULT_SOURCES } from './default-sources';
 
-/**
- * 搜索视频（支持指定源列表+分页）
- * @param query 搜索关键词
- * @param sources 可选：指定搜索的源列表
- * @param page 可选：页码（默认第1页）
- * @returns 搜索结果数组
- */
 export async function searchVideos(
   query: string,
   sources?: VideoSource[],
