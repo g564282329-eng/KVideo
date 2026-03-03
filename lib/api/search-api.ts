@@ -1,3 +1,4 @@
+// lib/api/search-api.ts - 纯英文语法，适配类型
 import type { VideoSource, SearchResult, ApiSearchResponse } from '@/lib/types';
 import { fetchWithTimeout, withRetry } from './http-utils';
 import { DEFAULT_SOURCES } from './default-sources';
@@ -5,29 +6,27 @@ import { DEFAULT_SOURCES } from './default-sources';
 /**
  * 搜索视频（支持指定源列表+分页）
  * @param query 搜索关键词
- * @param sources 可选：指定搜索的源列表（默认用全局数据源）
+ * @param sources 可选：指定搜索的源列表
  * @param page 可选：页码（默认第1页）
  * @returns 搜索结果数组
  */
 export async function searchVideos(
   query: string,
-  sources?: VideoSource[], // 新增：支持指定源列表
-  page: number = 1 // 新增：分页参数（默认第1页）
+  sources?: VideoSource[],
+  page: number = 1
 ): Promise<SearchResult[]> {
-  // 优先使用传入的源列表，否则用默认数据源
   const activeSources = sources || DEFAULT_SOURCES;
-  // 过滤禁用的源
   const validSources = activeSources.filter(source => source.enabled !== false);
 
   if (typeof window !== 'undefined') {
-    console.log(`🔍 搜索关键词: ${query}, 源数量: ${validSources.length}, 页码: ${page}`);
+    console.log(`🔍 Search query: ${query}, sources: ${validSources.length}, page: ${page}`);
   }
 
   const promises = validSources.map(async (source) => {
     try {
       const url = new URL(`${source.baseUrl}${source.searchPath}`);
       url.searchParams.set('wd', query.trim());
-      url.searchParams.set('page', page.toString()); // 传递分页参数
+      url.searchParams.set('page', page.toString());
       if (source.headers) url.searchParams.set('ac', 'search');
 
       const response = await withRetry(async () => {
@@ -40,7 +39,7 @@ export async function searchVideos(
         });
       });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
       const data: ApiSearchResponse = await response.json();
 
       return (data.list || []).map(item => ({
@@ -52,7 +51,7 @@ export async function searchVideos(
         source_name: source.name,
       })) as SearchResult[];
     } catch (error) {
-      console.error(`源 ${source.name} 搜索失败:`, error);
+      console.error(`Source ${source.name} search failed:`, error);
       return [];
     }
   });
@@ -64,5 +63,4 @@ export async function searchVideos(
     .filter(Boolean);
 }
 
-// 兼容原有调用方式
 export const search = searchVideos;
