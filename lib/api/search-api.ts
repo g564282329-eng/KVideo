@@ -54,12 +54,4 @@ url.searchParams.set('page', '1'); // 固定第一页，简化测试
 }
 
 export const search = searchVideos;
-return (data.list || []).map(item => ({
-  vod_id: item.vod_id || '',
-  vod_name: item.vod_name || '未知影片',
-  // 封面容错：无地址则用默认图，补全相对路径
-  vod_pic: item.vod_pic?.startsWith('http') ? item.vod_pic : `https://picsum.photos/300/450?random=${item.vod_id}`,
-  vod_remarks: item.vod_remarks || '无评分',
-  source: source.id,
-  source_name: source.name,
-}));
+
