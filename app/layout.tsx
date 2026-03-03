@@ -1,4 +1,4 @@
-import '../lib/api/default-sources';
+import ClientInitializer from '@/components/ClientInitializer';
 import React from 'react';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -100,6 +100,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider>
+          <ClientInitializer />
           {/* 加入自动同步组件，它会在后台默默工作，我们放在 ThemeProvider 内部的最前面 */}
           <AutoSync />
 
