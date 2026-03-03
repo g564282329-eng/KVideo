@@ -14,8 +14,9 @@ export async function searchVideos(
   const promises = validSources.map(async (source: any) => {
     try {
       const url = new URL(source.searchPath, source.baseUrl);
-      url.searchParams.set('wd', query.trim());
-      url.searchParams.set('page', page.toString());
+      // 找到URL参数设置处，替换为以下代码（匹配上述数据源的`keyword`参数）
+url.searchParams.set('keyword', query.trim()); // 核心搜索参数
+url.searchParams.set('page', '1'); // 固定第一页，简化测试
       if (source.headers) url.searchParams.set('ac', 'search');
 
       const response = await withRetry(async () => {
