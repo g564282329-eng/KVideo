@@ -1,89 +1,74 @@
-import type {
-    VideoSource,
-    VideoItem,
-    ApiSearchResponse,
-} from '@/lib/types';
+import type { VideoSource, SearchResult, ApiSearchResponse } from '@/lib/types';
 import { fetchWithTimeout, withRetry } from './http-utils';
-/**
- * Search videos from a single source
- */
-async function searchVideosBySource(
-    query: string,
-    source: VideoSource,
-    page: number = 1
-): Promise<{ results: VideoItem[]; source: string; responseTime: number; pagecount: number }> {
-    const startTime = Date.now();
-
-    const url = new URL(`${source.baseUrl}${source.searchPath}`);
-    url.searchParams.set('ac', 'detail');
-    url.searchParams.set('wd', query);
-    url.searchParams.set('pg', page.toString());
-
-    try {
-        const response = await withRetry(async () => {
-            const res = await fetchWithTimeout(url.toString(), {
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0',
-                    ...source.headers,
-                },
-            });
-
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
-
-            return res;
-        });
-
-        const data: ApiSearchResponse = await response.json();
-
-        if (data.code !== 1 && data.code !== 0) {
-            throw new Error(data.msg || 'Invalid API response');
-        }
-
-        const results: VideoItem[] = (data.list || []).map(item => ({
-            ...item,
-            source: source.id,
-        }));
-
-        return {
-            results,
-            source: source.id,
-            responseTime: Date.now() - startTime,
-            pagecount: data.pagecount ?? 1,
-        };
-    } catch (error) {
-        console.error(`Search failed for source ${source.name}:`, error);
-        throw {
-            code: 'SEARCH_FAILED',
-            message: `Failed to search from ${source.name}`,
-            source: source.id,
-            retryable: true,
-        };
-    }
-}
-
+// 👇 新增：直接导入数据源，不再依赖 window
+import { DEFAULT_SOURCES } from './default-sources';
 
 /**
- * Search videos from multiple sources in parallel
+ * 并行搜索多个视频源
+ * @param query 搜索关键词
+ * @param type 视频类型（可选）
+ * @returns 合并后的搜索结果
  */
 export async function searchVideos(
-    query: string,
-    sources: VideoSource[],
-    page: number = 1
-): Promise<Array<{ results: VideoItem[]; source: string; responseTime?: number; pagecount?: number; error?: string }>> {
-    const searchPromises = sources.map(async source => {
-        try {
-            return await searchVideosBySource(query, source, page);
-        } catch (error) {
-            return {
-                results: [],
-                source: source.id,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            };
-        }
-    });
+  query: string,
+  type?: string
+): Promise<SearchResult[]> {
+  // 👇 核心修改：直接使用导入的数据源，移除 window 依赖
+  const sources = DEFAULT_SOURCES;
+  
+  // 可选调试日志（仅在浏览器端执行）
+  if (typeof window !== 'undefined') {
+    console.log("🔍 搜索已加载数据源:", sources);
+  }
 
-    return Promise.all(searchPromises);
+  // 过滤掉禁用的源
+  const activeSources = sources.filter(source => source.enabled !== false);
+
+  // 并行请求所有活跃源
+  const promises = activeSources.map(async (source) => {
+    try {
+      const url = new URL(`${source.baseUrl}${source.searchPath}`);
+      url.searchParams.set('wd', query);
+      if (type) url.searchParams.set('ac', type);
+
+      const response = await withRetry(async () => {
+        return fetchWithTimeout(url.toString(), {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            ...source.headers,
+          },
+        });
+      });
+
+      if (!response.ok) {
+        throw new Error(`源 ${source.name} 请求失败: ${response.status}`);
+      }
+
+      const data: ApiSearchResponse = await response.json();
+      
+      // 格式化结果
+      return (data.list || []).map(item => ({
+        vod_id: item.vod_id,
+        vod_name: item.vod_name,
+        vod_pic: item.vod_pic,
+        vod_remarks: item.vod_remarks,
+        source: source.id,
+        source_name: source.name,
+      })) as SearchResult[];
+    } catch (error) {
+      console.error(`源 ${source.name} 搜索失败:`, error);
+      return []; // 单个源失败不影响整体
+    }
+  });
+
+  // 等待所有请求完成，合并结果
+  const results = await Promise.allSettled(promises);
+  return results
+    .filter(result => result.status === 'fulfilled')
+    .flatMap(result => (result as PromiseFulfilledResult<SearchResult[]>).value)
+    .filter(Boolean);
 }
+
+// 导出简化的搜索函数（兼容原有调用）
+export const search = searchVideos;
