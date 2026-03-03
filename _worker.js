@@ -1,20 +1,15 @@
-export default {
-  async fetch(request, env, ctx) {
-    const headers = new Headers(request.headers);
-    
-    // 允许跨域
-    headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    headers.set('Access-Control-Allow-Headers', 'Content-Type, User-Agent');
+import type { VideoSource } from '@/lib/types';
 
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers, status: 204 });
+// Default predefined video sources - Real Chinese video APIs
+export const DEFAULT_SOURCES: VideoSource[] = [
+  {
+    id: "public-parse-1",
+    name: "公共解析源",
+    baseUrl: "https://api.pianku.me",
+    searchPath: "/api.php",
+    detailPath: "/api.php",
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
-
-    try {
-      return await fetch(request, { headers });
-    } catch (e) {
-      return new Response('Error: ' + e.message, { status: 500, headers });
-    }
-  },
-};
+  }
+];
